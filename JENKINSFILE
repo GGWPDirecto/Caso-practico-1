@@ -6,19 +6,23 @@ pipeline {
             steps {
                 echo 'Descargando el código del repositorio'
                 git 'https://github.com/GGWPDirecto/Caso-practico-1.git'
+                
+                echo "Ruta actual:"
+                echo env.WORKSPACE
+
                 bat '''
-                    echo "Ruta actual:"
-                    echo %CD%
+                    echo "Mostrando contenido del directorio:"
                     dir
                 '''
-                echo env.WORKSPACE
             }
         }
+
         stage('Build') {
             steps {
                 echo "NO ES NECESARIO COMPILAR YA QUE ES PYTHON"
             }
         }
+
         stage('Tests Paralelos') {
             parallel {
                 stage('Unit') {
@@ -32,6 +36,7 @@ pipeline {
                         '''
                     }
                 }
+
                 stage('Rest') {
                     steps {
                         bat '''
@@ -47,7 +52,7 @@ pipeline {
             }
         }
 
-        stage('results') {
+        stage('Results') {
             steps {
                 junit 'result*.xml'
             }
