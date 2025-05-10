@@ -1,13 +1,16 @@
 pipeline {
     agent any
-    
+
     stages {
         stage('Get Code') {
             steps {
                 echo 'Descargando el código del repositorio'
                 git 'https://github.com/GGWPDirecto/Caso-practico-1.git'
-                echo %CD%
-                bat 'dir'
+                bat '''
+                    echo "Ruta actual:"
+                    echo %CD%
+                    dir
+                '''
                 echo env.WORKSPACE
             }
         }
@@ -43,9 +46,9 @@ pipeline {
                 }
             }
         }
-        
-        stage('results'){
-            steps{
+
+        stage('results') {
+            steps {
                 junit 'result*.xml'
             }
         }
