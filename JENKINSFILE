@@ -6,6 +6,7 @@ pipeline {
             steps {
                 echo 'Descargando el código del repositorio'
                 git 'https://github.com/GGWPDirecto/Caso-practico-1.git'
+                echo %CD%
                 bat 'dir'
                 echo env.WORKSPACE
             }
