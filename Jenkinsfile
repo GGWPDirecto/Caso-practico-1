@@ -1,11 +1,8 @@
 pipeline {
-    agent none
-
+    agent any
+    
     stages {
         stage('Get Code') {
-            agent {
-                label 'Agente1'
-            }
             steps {
                 echo 'Descargando el código del repositorio'
                 git 'https://github.com/GGWPDirecto/Caso-practico-1.git'
@@ -14,9 +11,6 @@ pipeline {
             }
         }
         stage('Build') {
-            agent {
-                label 'Agente1'
-            }
             steps {
                 echo "NO ES NECESARIO COMPILAR YA QUE ES PYTHON"
             }
@@ -24,23 +18,17 @@ pipeline {
         stage('Tests Paralelos') {
             parallel {
                 stage('Unit') {
-                    agent {
-                        label 'Agente1'
-                    }
                     steps {
                         bat 'where python'
                         bat 'python --version'
+
                         bat '''
                             set PYTHONPATH=%WORKSPACE%
                             pytest --junitxml=result-unit.xml test\\unit
                         '''
-                        stash name: 'unit-results', includes: 'result-unit.xml'
                     }
                 }
                 stage('Rest') {
-                    agent {
-                        label 'agente 2'
-                    }
                     steps {
                         bat '''
                             set FLASK_APP=app\\api.py
@@ -50,18 +38,13 @@ pipeline {
                             set PYTHONPATH=%WORKSPACE%
                             pytest --junitxml=result-rest.xml test\\rest
                         '''
-                        stash name: 'rest-results', includes: 'result-rest.xml'
                     }
                 }
             }
         }
-        stage('Results') {
-            agent {
-                label 'Agente1'
-            }
-            steps {
-                unstash 'unit-results'
-                unstash 'rest-results'
+        
+        stage('results'){
+            steps{
                 junit 'result*.xml'
             }
         }
