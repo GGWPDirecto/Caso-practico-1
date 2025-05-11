@@ -5,15 +5,35 @@ pipeline {
         stage('Get Code') {
             agent { label 'Agente1' }
             steps {
+                bat 'whoami'
+                bat 'hostname'
+                echo env.WORKSPACE
+                
                 git 'https://github.com/GGWPDirecto/Caso-practico-1.git'
                 stash name: 'source-code', includes: '**/*'
             }
         }
+
+        stage('Build') {
+            agent { label 'Agente1' }
+            steps {
+                bat 'whoami'
+                bat 'hostname'
+                echo env.WORKSPACE
+
+                echo "NO ES NECESARIO COMPILAR YA QUE ES PYTHON"
+            }
+        }
+
         stage('Tests') {
             parallel {
                 stage('Unit') {
                     agent { label 'Agente1' }
                     steps {
+                        bat 'whoami'
+                        bat 'hostname'
+                        echo env.WORKSPACE
+
                         unstash 'source-code'
                         bat 'pytest --junitxml=result-unit.xml test\\unit'
                         stash name: 'unit-results', includes: 'result-unit.xml'
@@ -22,6 +42,10 @@ pipeline {
                 stage('Rest') {
                     agent { label 'Agente2' }
                     steps {
+                        bat 'whoami'
+                        bat 'hostname'
+                        echo env.WORKSPACE
+
                         unstash 'source-code'
                         bat 'pytest --junitxml=result-rest.xml test\\rest'
                         stash name: 'rest-results', includes: 'result-rest.xml'
@@ -29,9 +53,14 @@ pipeline {
                 }
             }
         }
+
         stage('Results') {
             agent { label 'Agente1' }
             steps {
+                bat 'whoami'
+                bat 'hostname'
+                echo env.WORKSPACE
+
                 unstash 'unit-results'
                 unstash 'rest-results'
                 junit 'result*.xml'
