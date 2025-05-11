@@ -51,6 +51,12 @@ pipeline {
 
                         unstash 'source-code'
                         bat '''
+                            set FLASK_APP=app\\api.py
+                            set FLASK_ENV=development
+                            start /B flask run
+                            timeout /T 5
+                            start /B java -jar C:\\WireMock\\wiremock-standalone-3.13.0.jar --port 9090 --root-dir C:\\WireMock
+                            timeout /T 5
                             set PYTHONPATH=%WORKSPACE%
                             pytest --junitxml=result-rest.xml test\\rest
                         '''
