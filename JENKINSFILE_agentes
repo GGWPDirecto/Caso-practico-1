@@ -19,16 +19,13 @@ pipeline {
                 stage('Unit') {
                     agent { label 'Agente1' }
                     steps {
-                        bat 'whoami'
-                        bat 'hostname'
-                        echo env.WORKSPACE
-
                         unstash 'source-code'
                         bat '''
                             set PYTHONPATH=%WORKSPACE%
                             pytest --junitxml=result-unit.xml test\\unit
                         '''
                         stash name: 'unit-results', includes: 'result-unit.xml'
+                        junit 'result-unit.xml'
                     }
                 }
 
@@ -43,11 +40,34 @@ pipeline {
                         script {
                             def warnings = readFile('flake8-report.txt').split('\n').size()
                             if (warnings >= 10) {
-                                currentBuild.result = 'UNSTABLE'  // Permitir continuar el pipeline
+                                currentBuild.result = 'UNSTABLE'
                             } else if (warnings >= 8) {
                                 currentBuild.result = 'UNSTABLE'
                             }
                         }
+
+                        archiveArtifacts artifacts: 'flake8-report.txt', fingerprint: true
+                    }
+                }
+
+                stage('Security Test') {
+                    agent { label 'Agente2' }
+                    steps {
+                        unstash 'source-code'
+                        bat 'set PYTHONPATH=%WORKSPACE% bandit -r app/ -f json -o security-report.json'
+                        bat 'dir security-report.json'
+                        bat 'type security-report.json'
+
+                        script {
+                            def securityFindings = readJSON(file: 'security-report.json').metrics.TOTAL
+                            if (securityFindings >= 4) {
+                                currentBuild.result = 'FAILURE'
+                            } else if (securityFindings >= 2) {
+                                currentBuild.result = 'UNSTABLE'
+                            }
+                        }
+
+                        archiveArtifacts artifacts: 'security-report.json', fingerprint: true
                     }
                 }
 
@@ -60,11 +80,9 @@ pipeline {
                             coverage run -m pytest
                             coverage xml -o coverage.xml
                         '''
-
                         bat 'dir coverage.xml'
                         bat 'type coverage.xml'
 
-                        // Registrar cobertura y aplicar quality gates
                         recordCoverage(
                             tools: [[parser: 'COBERTURA', pattern: 'coverage.xml']],
                             qualityGates: [
@@ -78,10 +96,6 @@ pipeline {
                 stage('Rest') {
                     agent { label 'Agente2' }
                     steps {
-                        bat 'whoami'
-                        bat 'hostname'
-                        echo env.WORKSPACE
-
                         unstash 'source-code'
                         bat '''
                             set FLASK_APP=app\\api.py
@@ -94,6 +108,16 @@ pipeline {
                             pytest --junitxml=result-rest.xml test\\rest
                         '''
                         stash name: 'rest-results', includes: 'result-rest.xml'
+                        junit 'result-rest.xml'
+                    }
+                }
+
+                stage('Performance') {
+                    agent { label 'Agente2' }
+                    steps {
+                        unstash 'source-code'
+                        bat 'jmeter -n -t test-plan.jmx -l result-performance.jtl'
+                        archiveArtifacts artifacts: 'result-performance.jtl', fingerprint: true
                     }
                 }
             }
