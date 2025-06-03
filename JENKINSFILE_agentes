@@ -51,6 +51,30 @@ pipeline {
                     }
                 }
 
+                stage('Coverage') {
+                    agent { label 'Agente1' }
+                    steps {
+                        unstash 'source-code'
+                        bat '''
+                            set PYTHONPATH=%WORKSPACE%
+                            coverage run -m pytest
+                            coverage xml -o coverage.xml
+                        '''
+
+                        bat 'dir coverage.xml'
+                        bat 'type coverage.xml'
+
+                        // Registrar cobertura y aplicar quality gates
+                        recordCoverage(
+                            tools: [[parser: 'COBERTURA', pattern: 'coverage.xml']],
+                            qualityGates: [
+                                [integerThreshold: 95, metric: 'LINE', threshold: 95.0],
+                                [criticality: 'ERROR', integerThreshold: 85, metric: 'LINE', threshold: 85.0]
+                            ]
+                        )
+                    }
+                }
+
                 stage('Rest') {
                     agent { label 'Agente2' }
                     steps {
