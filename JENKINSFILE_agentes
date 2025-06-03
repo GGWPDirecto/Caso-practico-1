@@ -14,17 +14,6 @@ pipeline {
             }
         }
 
-        stage('Build') {
-            agent { label 'Agente1' }
-            steps {
-                bat 'whoami'
-                bat 'hostname'
-                echo env.WORKSPACE
-
-                echo "NO ES NECESARIO COMPILAR YA QUE ES PYTHON"
-            }
-        }
-
         stage('Tests') {
             parallel {
                 stage('Unit') {
@@ -63,19 +52,6 @@ pipeline {
                         stash name: 'rest-results', includes: 'result-rest.xml'
                     }
                 }
-            }
-        }
-
-        stage('Results') {
-            agent { label 'Agente1' }
-            steps {
-                bat 'whoami'
-                bat 'hostname'
-                echo env.WORKSPACE
-
-                unstash 'unit-results'
-                unstash 'rest-results'
-                junit 'result*.xml'
             }
         }
     }
