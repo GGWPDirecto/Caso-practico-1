@@ -30,6 +30,8 @@ pipeline {
                         '''
                         stash name: 'unit-results', includes: 'result-unit.xml'
                     }
+                }
+
                 stage('Static Analysis') {
                     agent { label 'Agente1' }
                     steps {
@@ -45,7 +47,7 @@ pipeline {
                         }
                     }
                 }
-                }
+
                 stage('Rest') {
                     agent { label 'Agente2' }
                     steps {
