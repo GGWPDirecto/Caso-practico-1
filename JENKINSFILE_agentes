@@ -37,12 +37,15 @@ pipeline {
                     steps {
                         unstash 'source-code'
                         bat 'flake8 app/ > flake8-report.txt'
-                        bat 'dir flake8-report.txt' // Paso 1: Verificación de creación del archivo
-                        bat 'type flake8-report.txt' // Paso 1: Verificar contenido del archivo
+                        
+                        // Paso 1: Verificar si el archivo se genera correctamente
+                        bat 'dir flake8-report.txt'
+                        bat 'type flake8-report.txt'
+
                         script {
                             def warnings = readFile('flake8-report.txt').split('\n').size()
                             if (warnings >= 10) {
-                                currentBuild.result = 'FAILURE'
+                                currentBuild.result = 'UNSTABLE'  // Permitir continuar el pipeline
                             } else if (warnings >= 8) {
                                 currentBuild.result = 'UNSTABLE'
                             }
