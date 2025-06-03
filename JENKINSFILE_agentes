@@ -30,6 +30,21 @@ pipeline {
                         '''
                         stash name: 'unit-results', includes: 'result-unit.xml'
                     }
+                stage('Static Analysis') {
+                    agent { label 'Agente1' }
+                    steps {
+                        unstash 'source-code'
+                        bat 'flake8 app/ | tee flake8-report.txt'
+                        script {
+                            def warnings = readFile('flake8-report.txt').split('\n').size()
+                            if (warnings >= 10) {
+                                currentBuild.result = 'FAILURE'
+                            } else if (warnings >= 8) {
+                                currentBuild.result = 'UNSTABLE'
+                            }
+                        }
+                    }
+                }
                 }
                 stage('Rest') {
                     agent { label 'Agente2' }
