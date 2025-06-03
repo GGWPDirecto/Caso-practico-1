@@ -32,7 +32,7 @@ pipeline {
                     }
                 }
 
-                stage('Static Analysis') {
+                                stage('Static Analysis') {
                     agent { label 'Agente1' }
                     steps {
                         unstash 'source-code'
@@ -46,6 +46,7 @@ pipeline {
                             }
                         }
                     }
+                }
                 }
 
                 stage('Rest') {
