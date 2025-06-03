@@ -36,7 +36,7 @@ pipeline {
                     agent { label 'Agente1' }
                     steps {
                         unstash 'source-code'
-                        bat 'flake8 app/ | tee flake8-report.txt'
+                        bat 'flake8 app/ > flake8-report.txt'
                         script {
                             def warnings = readFile('flake8-report.txt').split('\n').size()
                             if (warnings >= 10) {
