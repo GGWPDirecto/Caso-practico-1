@@ -53,9 +53,11 @@ pipeline {
                 '''
                 recordCoverage(tools: [[parser: 'COBERTURA', pattern: 'coverage.xml']],
                                qualityGates: [
-                                   [threshold: 99.0, metric: 'LINE', baseline: 'PROJECT', criticality: 'NOTE'],
-                                   [threshold: 60.0, metric: 'BRANCH', baseline: 'PROJECT', criticality: 'NOTE']
-                               ])
+                        [threshold: 85.0, metric: 'LINE', baseline: 'PROJECT', criticality: 'FAILURE'],
+                        [threshold: 95.0, metric: 'LINE', baseline: 'PROJECT', criticality: 'UNSTABLE'],
+                        [threshold: 80.0, metric: 'BRANCH', baseline: 'PROJECT', criticality: 'FAILURE'],
+                        [threshold: 90.0, metric: 'BRANCH', baseline: 'PROJECT', criticality: 'UNSTABLE']
+                    ])
             }
         }
     }
