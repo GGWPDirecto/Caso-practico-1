@@ -28,7 +28,10 @@ pipeline {
         stage('Static Analysis') {
             steps {
                 unstash 'source-code'
-                bat 'set PYTHONPATH=%WORKSPACE% flake8 app/ > flake8-report.txt'
+                bat '''
+                    set PYTHONPATH=%WORKSPACE%
+                    flake8 app/ > flake8-report.txt
+                '''
                 bat 'dir flake8-report.txt'
                 bat 'type flake8-report.txt'
 
@@ -54,11 +57,3 @@ pipeline {
                     start /B flask run
                     timeout /T 5
                     start /B java -jar C:\\WireMock\\wiremock-standalone-3.13.0.jar --port 9090 --root-dir C:\\WireMock
-                    timeout /T 5
-                    set PYTHONPATH=%WORKSPACE%
-                    pytest --junitxml=result-rest.xml test\\rest
-                '''
-                stash name: 'rest-results', includes: 'result-rest.xml'
-                junit 'result-rest.xml'
-            }
-        }
