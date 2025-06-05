@@ -25,7 +25,7 @@ pipeline {
             }
         }
 
-        stage('Integration Test (Rest)') {
+        stage('Rest') {
             steps {
                 unstash 'source-code'
                 bat '''
@@ -52,12 +52,13 @@ pipeline {
                     coverage xml -o coverage.xml
                 '''
                 recordCoverage(tools: [[parser: 'COBERTURA', pattern: 'coverage.xml']],
-                               qualityGates: [
+                    qualityGates: [
                         [threshold: 85.0, metric: 'LINE', baseline: 'PROJECT', criticality: 'FAILURE'],
                         [threshold: 95.0, metric: 'LINE', baseline: 'PROJECT', criticality: 'UNSTABLE'],
                         [threshold: 80.0, metric: 'BRANCH', baseline: 'PROJECT', criticality: 'FAILURE'],
                         [threshold: 90.0, metric: 'BRANCH', baseline: 'PROJECT', criticality: 'UNSTABLE']
-                    ])
+                    ]
+                )
             }
         }
 
@@ -79,6 +80,27 @@ pipeline {
                     if (warningCount >= 10) {
                         currentBuild.result = 'UNHEALTHY'
                     } else if (warningCount >= 5) {
+                        currentBuild.result = 'UNSTABLE'
+                    }
+                }
+            }
+        }
+
+        stage('Security') {
+            steps {
+                unstash 'source-code'
+                bat '''
+                    set PYTHONPATH=%WORKSPACE%
+                    bandit -r app/ -f json -o bandit-report.json || exit 0
+                '''
+                bat 'type bandit-report.json'
+
+                script {
+                    def json = readJSON text: readFile('bandit-report.json')
+
+                    if (json['results'].size() >= 4) {
+                        currentBuild.result = 'UNHEALTHY'
+                    } else if (json['results'].size() >= 2) {
                         currentBuild.result = 'UNSTABLE'
                     }
                 }
