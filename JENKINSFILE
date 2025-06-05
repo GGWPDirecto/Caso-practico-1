@@ -28,7 +28,6 @@ pipeline {
                 }
 
                 stage('Static Analysis') {
-                        agent { label 'Agente1' }
                     steps {
                         unstash 'source-code'
                         bat '''
@@ -48,7 +47,6 @@ pipeline {
                         }
                     }
                 }
-            }
 
                 stage('Rest') {
                     steps {
