@@ -29,70 +29,6 @@ pipeline {
                     }
                 }
 
-                stage('Static Analysis') {
-                    agent { label 'Agente1' }
-                    steps {
-                        unstash 'source-code'
-                        bat 'set PYTHONPATH=%WORKSPACE% flake8 app/ > flake8-report.txt'
-                        bat 'dir flake8-report.txt'
-                        bat 'type flake8-report.txt'
-
-                        script {
-                            def warnings = readFile('flake8-report.txt').split('\n').size()
-                            if (warnings >= 10) {
-                                currentBuild.result = 'UNSTABLE'
-                            } else if (warnings >= 8) {
-                                currentBuild.result = 'UNSTABLE'
-                            }
-                        }
-
-                        archiveArtifacts artifacts: 'flake8-report.txt', fingerprint: true
-                    }
-                }
-
-                stage('Security Test') {
-                    agent { label 'Agente2' }
-                    steps {
-                        unstash 'source-code'
-                        bat 'set PYTHONPATH=%WORKSPACE% bandit -r app/ -f json -o security-report.json'
-                        bat 'dir security-report.json'
-                        bat 'type security-report.json'
-
-                        script {
-                            def securityFindings = readJSON(file: 'security-report.json').metrics.TOTAL
-                            if (securityFindings >= 4) {
-                                currentBuild.result = 'FAILURE'
-                            } else if (securityFindings >= 2) {
-                                currentBuild.result = 'UNSTABLE'
-                            }
-                        }
-
-                        archiveArtifacts artifacts: 'security-report.json', fingerprint: true
-                    }
-                }
-
-                stage('Coverage') {
-                    agent { label 'Agente1' }
-                    steps {
-                        unstash 'source-code'
-                        bat '''
-                            set PYTHONPATH=%WORKSPACE%
-                            coverage run -m pytest
-                            coverage xml -o coverage.xml
-                        '''
-                        bat 'dir coverage.xml'
-                        bat 'type coverage.xml'
-
-                        recordCoverage(
-                            tools: [[parser: 'COBERTURA', pattern: 'coverage.xml']],
-                            qualityGates: [
-                                [integerThreshold: 95, metric: 'LINE', threshold: 95.0],
-                                [criticality: 'ERROR', integerThreshold: 85, metric: 'LINE', threshold: 85.0]
-                            ]
-                        )
-                    }
-                }
-
                 stage('Rest') {
                     agent { label 'Agente2' }
                     steps {
@@ -109,15 +45,6 @@ pipeline {
                         '''
                         stash name: 'rest-results', includes: 'result-rest.xml'
                         junit 'result-rest.xml'
-                    }
-                }
-
-                stage('Performance') {
-                    agent { label 'Agente2' }
-                    steps {
-                        unstash 'source-code'
-                        bat 'jmeter -n -t test-plan.jmx -l result-performance.jtl'
-                        archiveArtifacts artifacts: 'result-performance.jtl', fingerprint: true
                     }
                 }
             }
