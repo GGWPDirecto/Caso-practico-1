@@ -43,8 +43,6 @@ pipeline {
                         currentBuild.result = 'UNSTABLE'
                     }
                 }
-
-                archiveArtifacts artifacts: 'flake8-report.txt', fingerprint: true
             }
         }
 
