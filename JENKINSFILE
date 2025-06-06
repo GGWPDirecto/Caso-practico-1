@@ -79,13 +79,16 @@ pipeline {
                 unstash 'source-code'
                 bat '''
                     set PYTHONPATH=%WORKSPACE%
-                    bandit -r app/ -f json -o bandit-report.json || exit 0
+                    bandit -r app/ -f json -o bandit.json
+                    python -c "import json, os; data=json.load(open('bandit.json')); open('bandit.txt','w').write('\n'.join(f'{item[\"filename\"]}:{item[\"line_number\"]}: {item[\"issue_severity\"]}: {item[\"test_id\"]}: {item[\"issue_text\"]}' for item in data['results']))" || exit 0
                 '''
+                recordIssues(tool: bandit(pattern: 'bandit.txt'))
+                
                 script {
-                    def banditResults = readJSON file: 'bandit-report.json'
-                    if (banditResults.results.size() >= 4) {
+                    def results = readJSON file: 'bandit.json'
+                    if (results.results.size() >= 4) {
                         currentBuild.result = 'FAILURE'
-                    } else if (banditResults.results.size() >= 2) {
+                    } else if (results.results.size() >= 2) {
                         currentBuild.result = 'UNSTABLE'
                     }
                 }
