@@ -4,9 +4,6 @@ pipeline {
     stages {
         stage('Get Code') {
             steps {
-                bat 'whoami'
-                bat 'hostname'
-                echo env.WORKSPACE
                 git 'https://github.com/GGWPDirecto/Caso-practico-1.git'
                 stash name: 'source-code', includes: '**/*'
             }
@@ -30,8 +27,6 @@ pipeline {
                     set FLASK_APP=app\\api.py
                     set FLASK_ENV=development
                     start /B flask run
-                    timeout /T 5
-                    start /B java -jar C:\\WireMock\\wiremock-standalone-3.13.0.jar --port 9090 --root-dir C:\\WireMock
                     timeout /T 5
                     set PYTHONPATH=%WORKSPACE%
                     pytest --junitxml=result-rest.xml test\\rest || exit 0
@@ -68,23 +63,14 @@ pipeline {
                     flake8 app/ --format=pylint > flake8-report.txt || exit 0
                 '''
                 script {
-                    def flake8Output = readFile('flake8-report.txt')
-                    def warningCount = flake8Output.readLines().size()
-                    echo "Total flake8 warnings: ${warningCount}"
-                    
-                    if (warningCount >= 10) {
+                    def warnings = readFile('flake8-report.txt').readLines().findAll { it.trim() }
+                    if (warnings.size() >= 10) {
                         currentBuild.result = 'FAILURE'
-                    } else if (warningCount >= 8) {
+                    } else if (warnings.size() >= 8) {
                         currentBuild.result = 'UNSTABLE'
                     }
                 }
-                recordIssues(
-                    tools: [flake8(pattern: 'flake8-report.txt')],
-                    qualityGates: [
-                        [threshold: 8, type: 'TOTAL', unstable: true],
-                        [threshold: 10, type: 'TOTAL', unstable: false, failure: true]
-                    ]
-                )
+                recordIssues(tools: [flake8(pattern: 'flake8-report.txt')])
             }
         }
         
@@ -93,26 +79,16 @@ pipeline {
                 unstash 'source-code'
                 bat '''
                     set PYTHONPATH=%WORKSPACE%
-                    bandit -r app/ -f custom --msg-template "{line}:{col} {severity}: {test_id}: {msg}" -o bandit-report.txt || exit 0
+                    bandit -r app/ -f json -o bandit-report.json || exit 0
                 '''
                 script {
-                    def banditOutput = readFile('bandit-report.txt')
-                    def findingsCount = banditOutput.readLines().size()
-                    echo "Total Bandit findings: ${findingsCount}"
-                    
-                    if (findingsCount >= 4) {
+                    def banditResults = readJSON file: 'bandit-report.json'
+                    if (banditResults.results.size() >= 4) {
                         currentBuild.result = 'FAILURE'
-                    } else if (findingsCount >= 2) {
+                    } else if (banditResults.results.size() >= 2) {
                         currentBuild.result = 'UNSTABLE'
                     }
                 }
-                recordIssues(
-                    tools: [bandit(pattern: 'bandit-report.txt')],
-                    qualityGates: [
-                        [threshold: 2, type: 'TOTAL', unstable: true],
-                        [threshold: 4, type: 'TOTAL', unstable: false, failure: true]
-                    ]
-                )
             }
         }
         
@@ -127,19 +103,6 @@ pipeline {
                     C:\\Jenkins_Agente1\\Jenkins\\workspace\\tools\\apache-jmeter-5.6.3\\bin\\jmeter.bat -n -t test\\jmeter\\flask2.jmx -l test\\jmeter\\resultados.jtl
                 '''
                 perfReport sourceDataFiles: 'test/jmeter/resultados.jtl'
-            }
-        }
-    }
-    
-    post {
-        always {
-            script {
-                // Forzar continuar el pipeline independientemente de los resultados
-                if (currentBuild.result == 'FAILURE' || currentBuild.result == 'UNSTABLE') {
-                    currentBuild.result = currentBuild.result
-                } else {
-                    currentBuild.result = 'SUCCESS'
-                }
             }
         }
     }
