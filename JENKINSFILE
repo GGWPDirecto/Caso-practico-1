@@ -117,6 +117,7 @@ pipeline {
                     timeout /T 5
                     C:\\Jenkins_Agente1\\Jenkins\\workspace\\tools\\apache-jmeter-5.6.3\\bin\\jmeter.bat -n -t test\\jmeter\\flask2.jmx -l test\\jmeter\\resultados.jtl
                 '''
+                perfReport sourceDataFiles: 'test/jmeter/resultados.jtl'
             }
         }
     }
