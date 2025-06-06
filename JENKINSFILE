@@ -75,36 +75,22 @@ pipeline {
         }
         
         stage('Security') {
-                steps {
-                    unstash 'source-code'
-                    bat '''
-                        set PYTHONPATH=%WORKSPACE%
-                        bandit -r app/ -f txt -o bandit-report.txt || exit 0
-                    '''
-                    script {
-                        // Análisis personalizado
-                        def txt = readFile('bandit-report.txt')
-                        def issueCount = txt.count('<file ')
-                        echo "🔐 Bandit detectó ${issueCount} hallazgos."
-
-                        if (issueCount >= 4) {
-                            currentBuild.result = 'FAILURE'
-                        } else if (issueCount >= 2) {
-                            currentBuild.result = 'UNSTABLE'
-                        }
-                    }
-
-                    // Aquí se conectará con Warnings
-                    recordIssues(tools: [checkStyle(pattern: 'bandit-report.xml')])
-                }
-                post {
-                    always {
-                        archiveArtifacts artifacts: 'bandit-report.xml', fingerprint: true
+            steps {
+                unstash 'source-code'
+                bat '''
+                    set PYTHONPATH=%WORKSPACE%
+                    bandit -r app/ -f json -o bandit-report.json || exit 0
+                '''
+                script {
+                    def banditResults = readJSON file: 'bandit-report.json'
+                    if (banditResults.results.size() >= 4) {
+                        currentBuild.result = 'FAILURE'
+                    } else if (banditResults.results.size() >= 2) {
+                        currentBuild.result = 'UNSTABLE'
                     }
                 }
             }
-
-
+        }
         
         stage('Performance') {
             steps {
