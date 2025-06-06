@@ -65,14 +65,16 @@ set PYTHONPATH=%WORKSPACE%
 flake8 --format=pylint app/ > flake8-report.txt || exit 0
 '''
                 bat 'type flake8-report.txt'
-                script {
-                    def flake8Output = readFile('flake8-report.txt')
-                    def warningCount = flake8Output.readLines().size()
-                    echo "Total flake8 warnings: ${warningCount}"
-                    if (warningCount >= 10) {
-                        currentBuild.result = 'UNHEALTHY'
-                    } else if (warningCount >= 5) {
-                        currentBuild.result = 'UNSTABLE'
+                catchError(buildResult: 'UNSTABLE', stageResult: 'UNSTABLE') {
+                    script {
+                        def flake8Output = readFile('flake8-report.txt')
+                        def warningCount = flake8Output.readLines().size()
+                        echo "Total flake8 warnings: ${warningCount}"
+                        if (warningCount >= 10) {
+                            error("Too many warnings")
+                        } else if (warningCount >= 5) {
+                            error("Warnings above threshold")
+                        }
                     }
                 }
                 recordIssues tools: [pylint(pattern: 'flake8-report.txt')]
