@@ -104,6 +104,9 @@ pipeline {
                         currentBuild.result = 'UNSTABLE'
                     }
                 }
+
+                archiveArtifacts artifacts: 'bandit-report.json', fingerprint: true
+                recordIssues tools: [bandit(pattern: 'bandit-report.json')]
             }
         }
 
