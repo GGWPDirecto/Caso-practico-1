@@ -84,10 +84,11 @@ pipeline {
                         currentBuild.result = 'UNSTABLE'
                     }
                 }
-                publishIssues issues: [scanForIssues tool: [$class: 'Flake8']]
+                publishIssues issues: [[$class: 'Flake8']]
                 archiveArtifacts artifacts: 'flake8-report.txt', fingerprint: true
             }
         }
+
 
         stage('Security') {
             steps {
