@@ -51,7 +51,8 @@ pipeline {
                     coverage run -m pytest
                     coverage xml -o coverage.xml
                 '''
-                recordCoverage(tools: [[parser: 'COBERTURA', pattern: 'coverage.xml']],
+                recordCoverage(
+                    tools: [[parser: 'COBERTURA', pattern: 'coverage.xml']],
                     qualityGates: [
                         [threshold: 85.0, metric: 'LINE', baseline: 'PROJECT', criticality: 'FAILURE'],
                         [threshold: 95.0, metric: 'LINE', baseline: 'PROJECT', criticality: 'UNSTABLE'],
@@ -111,9 +112,9 @@ pipeline {
             steps {
                 script {
                     start /B flask run
-                        timeout /T 5
-                        start /B cmd /C "C:\\Jenkins_Agente1\\Jenkins\\workspace\\tools\\apache-jmeter-5.6.3\\bin\\jmeter.bat -n -t test\\jmeter\\flask2.jmx -l test\\jmeter\\resultados.jtl"
-                        timeout /T 5
+                    timeout /T 5
+                    start /B cmd /C "C:\\Jenkins_Agente1\\Jenkins\\workspace\\tools\\apache-jmeter-5.6.3\\bin\\jmeter.bat -n -t test\\jmeter\\flask2.jmx -l test\\jmeter\\resultados.jtl"
+                    timeout /T 5
 
                     '''
                     bat "\"${jmeterPath}\" -n -t test\\jmeter\\flask2.jmx -l test\\jmeter\\resultados.jtl"
