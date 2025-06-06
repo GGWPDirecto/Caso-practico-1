@@ -51,7 +51,8 @@ pipeline {
                     coverage run -m pytest
                     coverage xml -o coverage.xml
                 '''
-                recordCoverage(tools: [[parser: 'COBERTURA', pattern: 'coverage.xml']],
+                recordCoverage(
+                    tools: [[parser: 'COBERTURA', pattern: 'coverage.xml']],
                     qualityGates: [
                         [threshold: 85.0, metric: 'LINE', baseline: 'PROJECT', criticality: 'FAILURE'],
                         [threshold: 95.0, metric: 'LINE', baseline: 'PROJECT', criticality: 'UNSTABLE'],
