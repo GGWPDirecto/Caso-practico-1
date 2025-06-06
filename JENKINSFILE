@@ -106,5 +106,20 @@ pipeline {
                 }
             }
         }
+
+        stage('Performance Test (JMeter)') {
+            steps {
+                unstash 'source-code'
+                bat '''
+                    jmeter -n -t test\\jmeter\\flask2.jmx -l test\\jmeter\\resultados.jtl
+                '''
+            }
+        }
+    }
+
+    post {
+        always {
+            performanceReport sourceDataFiles: 'test/jmeter/resultados.jtl'
+        }
     }
 }
