@@ -75,43 +75,35 @@ pipeline {
         }
         
         stage('Security') {
-            steps {
-                unstash 'source-code'
-                bat '''
-                    set PYTHONPATH=%WORKSPACE%
-                    bandit -r app/ -f json -o bandit-report.json || exit 0
-                '''
-                script {
-                    def banditResults = readJSON file: 'bandit-report.json'
-                    def issueCount = banditResults.results.size()
-                    def summary = [:]
-                    banditResults.results.each { result ->
-                        def severity = result.issue_severity
-                        summary[severity] = summary.getOrDefault(severity, 0) + 1
+                steps {
+                    unstash 'source-code'
+                    bat '''
+                        set PYTHONPATH=%WORKSPACE%
+                        bandit -r app/ -f xml -o bandit-report.xml || exit 0
+                    '''
+                    script {
+                        // Análisis personalizado
+                        def xml = readFile('bandit-report.xml')
+                        def issueCount = xml.count('<file ')
+                        echo "🔐 Bandit detectó ${issueCount} hallazgos."
+
+                        if (issueCount >= 4) {
+                            currentBuild.result = 'FAILURE'
+                        } else if (issueCount >= 2) {
+                            currentBuild.result = 'UNSTABLE'
+                        }
                     }
 
-                    echo "Resumen de advertencias de Bandit:"
-                    summary.each { sev, count ->
-                        echo "  - ${sev}: ${count}"
-                    }
-
-                    if (issueCount >= 4) {
-                        echo "🔴 Seguridad: Se encontraron ${issueCount} hallazgos. Marcando como UNHEALTHY (FAILURE)."
-                        currentBuild.result = 'FAILURE'
-                    } else if (issueCount >= 2) {
-                        echo "🟠 Seguridad: Se encontraron ${issueCount} hallazgos. Marcando como UNSTABLE."
-                        currentBuild.result = 'UNSTABLE'
-                    } else {
-                        echo "🟢 Seguridad: Sin problemas graves detectados por Bandit."
+                    // Aquí se conectará con Warnings
+                    recordIssues(tools: [checkStyle(pattern: 'bandit-report.xml')])
+                }
+                post {
+                    always {
+                        archiveArtifacts artifacts: 'bandit-report.xml', fingerprint: true
                     }
                 }
             }
-            post {
-                always {
-                    archiveArtifacts artifacts: 'bandit-report.json', fingerprint: true
-                }
-            }
-        }
+
 
         
         stage('Performance') {
