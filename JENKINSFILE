@@ -79,21 +79,40 @@ pipeline {
                 unstash 'source-code'
                 bat '''
                     set PYTHONPATH=%WORKSPACE%
-                    bandit -r app/ -f json -o bandit.json
-                    python -c "import json, os; data=json.load(open('bandit.json')); open('bandit.txt','w').write('\n'.join(f'{item[\"filename\"]}:{item[\"line_number\"]}: {item[\"issue_severity\"]}: {item[\"test_id\"]}: {item[\"issue_text\"]}' for item in data['results']))" || exit 0
+                    bandit -r app/ -f json -o bandit-report.json || exit 0
                 '''
-                recordIssues(tool: bandit(pattern: 'bandit.txt'))
-                
                 script {
-                    def results = readJSON file: 'bandit.json'
-                    if (results.results.size() >= 4) {
+                    def banditResults = readJSON file: 'bandit-report.json'
+                    def issueCount = banditResults.results.size()
+                    def summary = [:]
+                    banditResults.results.each { result ->
+                        def severity = result.issue_severity
+                        summary[severity] = summary.getOrDefault(severity, 0) + 1
+                    }
+
+                    echo "Resumen de advertencias de Bandit:"
+                    summary.each { sev, count ->
+                        echo "  - ${sev}: ${count}"
+                    }
+
+                    if (issueCount >= 4) {
+                        echo "🔴 Seguridad: Se encontraron ${issueCount} hallazgos. Marcando como UNHEALTHY (FAILURE)."
                         currentBuild.result = 'FAILURE'
-                    } else if (results.results.size() >= 2) {
+                    } else if (issueCount >= 2) {
+                        echo "🟠 Seguridad: Se encontraron ${issueCount} hallazgos. Marcando como UNSTABLE."
                         currentBuild.result = 'UNSTABLE'
+                    } else {
+                        echo "🟢 Seguridad: Sin problemas graves detectados por Bandit."
                     }
                 }
             }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'bandit-report.json', fingerprint: true
+                }
+            }
         }
+
         
         stage('Performance') {
             steps {
