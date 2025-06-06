@@ -109,12 +109,14 @@ pipeline {
 
         stage('Performance') {
             steps {
+                unstash 'source-code'
                 bat '''
                     set FLASK_APP=app\\api.py
                     set FLASK_ENV=development
-                    start cmd /c "flask run"
+                    start /B flask run
+                    timeout /T 5
+                    C:\\Jenkins_Agente1\\Jenkins\\workspace\\tools\\apache-jmeter-5.6.3\\bin\\jmeter.bat -n -t test\\jmeter\\flask2.jmx -l test\\jmeter\\resultados.jtl
                 '''
-                bat 'timeout /T 5'
             }
         }
     }
