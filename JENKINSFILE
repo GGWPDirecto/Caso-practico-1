@@ -7,7 +7,6 @@ pipeline {
                 bat 'whoami'
                 bat 'hostname'
                 echo env.WORKSPACE
-
                 git 'https://github.com/GGWPDirecto/Caso-practico-1.git'
                 stash name: 'source-code', includes: '**/*'
             }
@@ -84,11 +83,8 @@ pipeline {
                         currentBuild.result = 'UNSTABLE'
                     }
                 }
-                publishIssues issues: [[$class: 'Flake8']]
-                archiveArtifacts artifacts: 'flake8-report.txt', fingerprint: true
             }
         }
-
 
         stage('Security') {
             steps {
@@ -108,8 +104,6 @@ pipeline {
                         currentBuild.result = 'UNSTABLE'
                     }
                 }
-                publishIssues issues: [scanForIssues tool: [$class: 'Bandit']]
-                archiveArtifacts artifacts: 'bandit-report.json', fingerprint: true
             }
         }
 
