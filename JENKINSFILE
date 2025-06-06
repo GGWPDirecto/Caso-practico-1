@@ -79,12 +79,12 @@ pipeline {
                     unstash 'source-code'
                     bat '''
                         set PYTHONPATH=%WORKSPACE%
-                        bandit -r app/ -f xml -o bandit-report.xml || exit 0
+                        bandit -r app/ -f txt -o bandit-report.txt || exit 0
                     '''
                     script {
                         // Análisis personalizado
-                        def xml = readFile('bandit-report.xml')
-                        def issueCount = xml.count('<file ')
+                        def txt = readFile('bandit-report.txt')
+                        def issueCount = txt.count('<file ')
                         echo "🔐 Bandit detectó ${issueCount} hallazgos."
 
                         if (issueCount >= 4) {
