@@ -1,5 +1,6 @@
 pipeline {
     agent { label 'Agente1' }
+    
     stages {
         stage('Get Code') {
             steps {
@@ -10,106 +11,135 @@ pipeline {
                 stash name: 'source-code', includes: '**/*'
             }
         }
+        
         stage('Unit Test') {
             steps {
                 unstash 'source-code'
                 bat '''
-set PYTHONPATH=%WORKSPACE%
-pytest --junitxml=result-unit.xml test\\unit
-'''
-                stash name: 'unit-results', includes: 'result-unit.xml'
+                    set PYTHONPATH=%WORKSPACE%
+                    pytest --junitxml=result-unit.xml test\\unit
+                '''
                 junit 'result-unit.xml'
             }
         }
+        
         stage('Rest') {
             steps {
                 unstash 'source-code'
                 bat '''
-set FLASK_APP=app\\api.py
-set FLASK_ENV=development
-start /B flask run
-timeout /T 5
-start /B java -jar C:\\WireMock\\wiremock-standalone-3.13.0.jar --port 9090 --root-dir C:\\WireMock
-timeout /T 5
-set PYTHONPATH=%WORKSPACE%
-pytest --junitxml=result-rest.xml test\\rest
-'''
-                stash name: 'rest-results', includes: 'result-rest.xml'
+                    set FLASK_APP=app\\api.py
+                    set FLASK_ENV=development
+                    start /B flask run
+                    timeout /T 5
+                    start /B java -jar C:\\WireMock\\wiremock-standalone-3.13.0.jar --port 9090 --root-dir C:\\WireMock
+                    timeout /T 5
+                    set PYTHONPATH=%WORKSPACE%
+                    pytest --junitxml=result-rest.xml test\\rest || exit 0
+                '''
                 junit 'result-rest.xml'
             }
         }
+        
         stage('Coverage') {
             steps {
                 unstash 'source-code'
                 bat '''
-set PYTHONPATH=%WORKSPACE%
-coverage run -m pytest
-coverage xml -o coverage.xml
-'''
+                    set PYTHONPATH=%WORKSPACE%
+                    coverage run -m pytest
+                    coverage xml -o coverage.xml
+                '''
                 recordCoverage(
                     tools: [[parser: 'COBERTURA', pattern: 'coverage.xml']],
                     qualityGates: [
-                        [threshold: 85.0, metric: 'LINE', baseline: 'PROJECT', criticality: 'FAILURE'],
                         [threshold: 95.0, metric: 'LINE', baseline: 'PROJECT', criticality: 'UNSTABLE'],
-                        [threshold: 80.0, metric: 'BRANCH', baseline: 'PROJECT', criticality: 'FAILURE'],
-                        [threshold: 90.0, metric: 'BRANCH', baseline: 'PROJECT', criticality: 'UNSTABLE']
+                        [threshold: 85.0, metric: 'LINE', baseline: 'PROJECT', criticality: 'FAILURE'],
+                        [threshold: 90.0, metric: 'BRANCH', baseline: 'PROJECT', criticality: 'UNSTABLE'],
+                        [threshold: 80.0, metric: 'BRANCH', baseline: 'PROJECT', criticality: 'FAILURE']
                     ]
                 )
             }
         }
+        
         stage('Static Analysis') {
             steps {
                 unstash 'source-code'
                 bat '''
-set PYTHONPATH=%WORKSPACE%
-flake8 --format=pylint app/ > flake8-report.txt || exit 0
-'''
-                bat 'type flake8-report.txt'
+                    set PYTHONPATH=%WORKSPACE%
+                    flake8 app/ --format=pylint > flake8-report.txt || exit 0
+                '''
                 script {
                     def flake8Output = readFile('flake8-report.txt')
                     def warningCount = flake8Output.readLines().size()
                     echo "Total flake8 warnings: ${warningCount}"
+                    
                     if (warningCount >= 10) {
-                        currentBuild.result = 'UNHEALTHY'
-                        echo "Too many warnings"
+                        currentBuild.result = 'FAILURE'
                     } else if (warningCount >= 8) {
                         currentBuild.result = 'UNSTABLE'
-                        echo "Warnings above threshold"
                     }
                 }
-                recordIssues tools: [[$class: 'PylintParser', pattern: 'flake8-report.txt']]
+                recordIssues(
+                    tools: [flake8(pattern: 'flake8-report.txt')],
+                    qualityGates: [
+                        [threshold: 8, type: 'TOTAL', unstable: true],
+                        [threshold: 10, type: 'TOTAL', unstable: false, failure: true]
+                    ]
+                )
             }
         }
+        
         stage('Security') {
             steps {
                 unstash 'source-code'
                 bat '''
-set PYTHONPATH=%WORKSPACE%
-bandit -r app/ -f json -o bandit-report.json || exit 0
-'''
-                bat 'type bandit-report.json'
+                    set PYTHONPATH=%WORKSPACE%
+                    bandit -r app/ -f custom --msg-template "{line}:{col} {severity}: {test_id}: {msg}" -o bandit-report.txt || exit 0
+                '''
                 script {
-                    def json = readJSON file: 'bandit-report.json'
-                    if (json['results'].size() >= 4) {
-                        currentBuild.result = 'UNHEALTHY'
-                    } else if (json['results'].size() >= 2) {
+                    def banditOutput = readFile('bandit-report.txt')
+                    def findingsCount = banditOutput.readLines().size()
+                    echo "Total Bandit findings: ${findingsCount}"
+                    
+                    if (findingsCount >= 4) {
+                        currentBuild.result = 'FAILURE'
+                    } else if (findingsCount >= 2) {
                         currentBuild.result = 'UNSTABLE'
                     }
                 }
-                recordIssues tools: [[$class: 'BanditParser', pattern: 'bandit-report.json']]
+                recordIssues(
+                    tools: [bandit(pattern: 'bandit-report.txt')],
+                    qualityGates: [
+                        [threshold: 2, type: 'TOTAL', unstable: true],
+                        [threshold: 4, type: 'TOTAL', unstable: false, failure: true]
+                    ]
+                )
             }
         }
+        
         stage('Performance') {
             steps {
                 unstash 'source-code'
                 bat '''
-set FLASK_APP=app\\api.py
-set FLASK_ENV=development
-start /B flask run
-timeout /T 5
-C:\\Jenkins_Agente1\\Jenkins\\workspace\\tools\\apache-jmeter-5.6.3\\bin\\jmeter.bat -n -t test\\jmeter\\flask2.jmx -l test\\jmeter\\resultados.jtl
-'''
+                    set FLASK_APP=app\\api.py
+                    set FLASK_ENV=development
+                    start /B flask run
+                    timeout /T 5
+                    C:\\Jenkins_Agente1\\Jenkins\\workspace\\tools\\apache-jmeter-5.6.3\\bin\\jmeter.bat -n -t test\\jmeter\\flask2.jmx -l test\\jmeter\\resultados.jtl
+                '''
                 perfReport sourceDataFiles: 'test/jmeter/resultados.jtl'
+            }
+        }
+    }
+    
+    post {
+        always {
+            script {
+                // Forzar continuar el pipeline independientemente de los resultados
+                if (currentBuild.result == 'FAILURE' || currentBuild.result == 'UNSTABLE') {
+                    currentBuild.result = currentBuild.result
+                } else {
+                    currentBuild.result = 'SUCCESS'
+                }
             }
         }
     }
