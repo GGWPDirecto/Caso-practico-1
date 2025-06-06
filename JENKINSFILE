@@ -62,6 +62,7 @@ pipeline {
                     set PYTHONPATH=%WORKSPACE%
                     flake8 app/ --format=pylint > flake8-report.txt || exit 0
                 '''
+                recordIssues(tools: [flake8(pattern: 'flake8-report.txt')])
                 script {
                     def warnings = readFile('flake8-report.txt').readLines().findAll { it.trim() }
                     if (warnings.size() >= 10) {
@@ -70,7 +71,6 @@ pipeline {
                         currentBuild.result = 'UNSTABLE'
                     }
                 }
-                recordIssues(tools: [flake8(pattern: 'flake8-report.txt')])
             }
         }
         
@@ -79,17 +79,16 @@ pipeline {
                 unstash 'source-code'
                 bat '''
                     set PYTHONPATH=%WORKSPACE%
-                    bandit -r app/ -f custom --msg-template "{path}:{line}: {severity}: {test_id}: {msg}" -o bandit-report.txt || exit 0
+                    bandit -r app/ -f json -o bandit-report.json || exit 0
                 '''
                 script {
-                    def findings = readFile('bandit-report.txt').readLines().findAll { it.trim() }
-                    if (findings.size() >= 4) {
+                    def banditResults = readJSON file: 'bandit-report.json'
+                    if (banditResults.results.size() >= 4) {
                         currentBuild.result = 'FAILURE'
-                    } else if (findings.size() >= 2) {
+                    } else if (banditResults.results.size() >= 2) {
                         currentBuild.result = 'UNSTABLE'
                     }
                 }
-                recordIssues(tools: [bandit(pattern: 'bandit-report.txt')])
             }
         }
         
@@ -104,14 +103,6 @@ pipeline {
                     C:\\Jenkins_Agente1\\Jenkins\\workspace\\tools\\apache-jmeter-5.6.3\\bin\\jmeter.bat -n -t test\\jmeter\\flask2.jmx -l test\\jmeter\\resultados.jtl
                 '''
                 perfReport sourceDataFiles: 'test/jmeter/resultados.jtl'
-            }
-        }
-    }
-    
-    post {
-        always {
-            script {
-                echo "Build finalizado con estado: ${currentBuild.result}"
             }
         }
     }
