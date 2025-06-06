@@ -68,9 +68,9 @@ pipeline {
                 unstash 'source-code'
                 bat '''
                     set PYTHONPATH=%WORKSPACE%
-                    flake8 --format=checkstyle app/ > flake8-report.xml || exit 0
+                    flake8 --format=pylint app/ > flake8-report.txt || exit 0
                 '''
-                recordIssues(tools: [checkStyle(pattern: 'flake8-report.xml')])
+                recordIssues(tools: [flake8(pattern: 'flake8-report.txt')])
             }
         }
 
