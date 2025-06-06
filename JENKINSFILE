@@ -69,16 +69,12 @@ flake8 --format=pylint app/ > flake8-report.txt || exit 0
                     def flake8Output = readFile('flake8-report.txt')
                     def warningCount = flake8Output.readLines().size()
                     echo "Total flake8 warnings: ${warningCount}"
-                    try {
-                        if (warningCount >= 10) {
-                            currentBuild.result = 'UNHEALTHY'
-                            error("Too many warnings")
-                        } else if (warningCount >= 8) {
-                            currentBuild.result = 'UNSTABLE'
-                            error("Warnings above threshold")
-                        }
-                    } catch(e) {
-                        echo "Caught threshold error, continuing pipeline."
+                    if (warningCount >= 10) {
+                        currentBuild.result = 'UNHEALTHY'
+                        echo "Too many warnings"
+                    } else if (warningCount >= 8) {
+                        currentBuild.result = 'UNSTABLE'
+                        echo "Warnings above threshold"
                     }
                 }
                 recordIssues tools: [pylint(pattern: 'flake8-report.txt')]
