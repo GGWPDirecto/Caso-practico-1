@@ -77,7 +77,7 @@ flake8 --format=pylint app/ > flake8-report.txt || exit 0
                         echo "Warnings above threshold"
                     }
                 }
-                recordIssues tools: [pylint(pattern: 'flake8-report.txt')]
+                recordIssues tools: [[$class: 'PylintParser', pattern: 'flake8-report.txt']]
             }
         }
         stage('Security') {
@@ -96,7 +96,7 @@ bandit -r app/ -f json -o bandit-report.json || exit 0
                         currentBuild.result = 'UNSTABLE'
                     }
                 }
-                recordIssues tools: [bandit(pattern: 'bandit-report.json')]
+                recordIssues tools: [[$class: 'BanditParser', pattern: 'bandit-report.json']]
             }
         }
         stage('Performance') {
