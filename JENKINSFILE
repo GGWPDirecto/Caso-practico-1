@@ -66,7 +66,7 @@ pipeline {
                 script {
                     def warnings = readFile('flake8-report.txt').readLines().findAll { it.trim() }
                     if (warnings.size() >= 10) {
-                        currentBuild.result = 'FAILURE'
+                        currentBuild.result = 'UNHEALTHY'
                     } else if (warnings.size() >= 8) {
                         currentBuild.result = 'UNSTABLE'
                     }
