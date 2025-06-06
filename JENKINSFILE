@@ -67,7 +67,7 @@ pipeline {
                 unstash 'source-code'
                 bat '''
                     set PYTHONPATH=%WORKSPACE%
-                    flake8 --format=pylint app/ > flake8-report.txt || exit 0
+                    flake8 --format=pylint --output-file=flake8-report.txt app/ || exit 0
                 '''
                 bat 'type flake8-report.txt'
 
@@ -83,6 +83,9 @@ pipeline {
                         currentBuild.result = 'UNSTABLE'
                     }
                 }
+
+                publishIssues issues: [[$class: 'Flake8', pattern: 'flake8-report.txt']]
+                archiveArtifacts artifacts: 'flake8-report.txt', fingerprint: true
             }
         }
 
@@ -104,6 +107,9 @@ pipeline {
                         currentBuild.result = 'UNSTABLE'
                     }
                 }
+
+                publishIssues issues: [[$class: 'Bandit', pattern: 'bandit-report.json']]
+                archiveArtifacts artifacts: 'bandit-report.json', fingerprint: true
             }
         }
 
