@@ -92,30 +92,19 @@ pipeline {
                 unstash 'source-code'
                 bat '''
                     set PYTHONPATH=%WORKSPACE%
-                    bandit -r app/ -f sarif -o bandit-report.sarif || exit 0
+                    bandit -r app/ -f json -o bandit-report.json || exit 0
                 '''
-                bat 'type bandit-report.sarif'
+                bat 'type bandit-report.json'
 
-                // Registrar los issues con el plugin Warnings NG usando SARIF
-                recordIssues tools: [sarif(pattern: 'bandit-report.sarif')]
-
-                // Opcional: lógica extra para marcar el build según cantidad de issues
-                // Esta parte requiere parsear el JSON, pero SARIF es un JSON complejo,
-                // para simplificar puedes omitir o implementar luego
-                /*
                 script {
-                    def sarifJson = readJSON file: 'bandit-report.sarif'
-                    def issueCount = 0
-                    if (sarifJson.runs && sarifJson.runs.size() > 0) {
-                        issueCount = sarifJson.runs[0].results?.size() ?: 0
-                    }
-                    if (issueCount >= 4) {
+                    def json = readJSON text: readFile('bandit-report.json')
+
+                    if (json['results'].size() >= 4) {
                         currentBuild.result = 'UNHEALTHY'
-                    } else if (issueCount >= 2) {
+                    } else if (json['results'].size() >= 2) {
                         currentBuild.result = 'UNSTABLE'
                     }
                 }
-                */
             }
         }
 
