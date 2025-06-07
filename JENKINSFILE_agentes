@@ -3,10 +3,9 @@ pipeline {
 
     stages {
         stage('Get Code') {
-            agent { label 'principal' }
+            agent { label 'Agente0' }
             steps {
                 cleanWs()
-                bat 'whoami && hostname'
                 git 'https://github.com/GGWPDirecto/Caso-practico-1.git'
                 stash name: 'source-code', includes: '**/*'
             }
@@ -20,7 +19,8 @@ pipeline {
                         cleanWs()
                         unstash 'source-code'
                         bat '''
-                            whoami && hostname
+                            whoami
+                            hostname
                             set PYTHONPATH=%WORKSPACE%
                             pytest --junitxml=result-unit.xml test\\unit
                         '''
@@ -35,7 +35,8 @@ pipeline {
                         cleanWs()
                         unstash 'source-code'
                         bat '''
-                            whoami && hostname
+                            whoami
+                            hostname
                             set FLASK_APP=app\\api.py
                             set FLASK_ENV=development
                             start /B flask run
@@ -53,7 +54,8 @@ pipeline {
                         cleanWs()
                         unstash 'source-code'
                         bat '''
-                            whoami && hostname
+                            whoami
+                            hostname
                             set PYTHONPATH=%WORKSPACE%
                             flake8 app/ --format=pylint > flake8-report.txt || exit 0
                         '''
@@ -75,7 +77,8 @@ pipeline {
                         cleanWs()
                         unstash 'source-code'
                         bat '''
-                            whoami && hostname
+                            whoami
+                            hostname
                             set PYTHONPATH=%WORKSPACE%
                             bandit -r app/ -f json -o bandit-report.json || exit 0
                         '''
@@ -97,8 +100,10 @@ pipeline {
             steps {
                 cleanWs()
                 unstash 'source-code'
+                unstash 'unit-test-results'
                 bat '''
-                    whoami && hostname
+                    whoami
+                    hostname
                     set PYTHONPATH=%WORKSPACE%
                     coverage run --rcfile=.coveragerc -m pytest
                     coverage xml -o coverage.xml
@@ -121,7 +126,8 @@ pipeline {
                 cleanWs()
                 unstash 'source-code'
                 bat '''
-                    whoami && hostname
+                    whoami
+                    hostname
                     set FLASK_APP=app\\api.py
                     set FLASK_ENV=development
                     start /B flask run
