@@ -16,7 +16,6 @@ pipeline {
                 stage('Unit Test') {
                     agent { label 'Agente1' }
                     steps {
-                        cleanWs()
                         unstash 'source-code'
                         bat '''
                             whoami
