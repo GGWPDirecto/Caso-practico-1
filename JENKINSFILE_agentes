@@ -1,6 +1,6 @@
 pipeline {
     agent none
-    
+
     stages {
         stage('Get Code') {
             agent { label 'Agente0' }
@@ -14,7 +14,7 @@ pipeline {
                 stash name: 'source-code', includes: '**/*'
             }
         }
-        
+
         stage('Unit Test') {
             agent { label 'Agente1' }
             steps {
@@ -32,7 +32,7 @@ pipeline {
                 junit 'result-unit.xml'
             }
         }
-        
+
         stage('Rest') {
             agent { label 'Agente2' }
             steps {
@@ -56,90 +56,86 @@ pipeline {
                 junit 'result-rest.xml'
             }
         }
-        
-        stage('Coverage') {
-            agent { label 'Agente1' }
-            steps {
-                script {
-                    echo "Ejecutando en agente: ${env.NODE_NAME}"
-                    bat 'whoami'
-                    bat 'hostname'
+
+        stage('Analysis & Coverage') {
+            parallel {
+                stage('Coverage') {
+                    agent { label 'Agente1' }
+                    steps {
+                        script {
+                            echo "Ejecutando Coverage en: ${env.NODE_NAME}"
+                        }
+                        unstash 'source-code'
+                        unstash 'unit-test-results'
+                        bat '''
+                            set PYTHONPATH=%WORKSPACE%
+                            coverage run --rcfile=.coveragerc -m pytest
+                            coverage xml -o coverage.xml
+                        '''
+                        recordCoverage(
+                            tools: [[parser: 'COBERTURA', pattern: 'coverage.xml']],
+                            qualityGates: [
+                                [threshold: 95.0, metric: 'LINE', baseline: 'PROJECT', criticality: 'UNSTABLE'],
+                                [threshold: 85.0, metric: 'LINE', baseline: 'PROJECT', criticality: 'FAILURE'],
+                                [threshold: 90.0, metric: 'BRANCH', baseline: 'PROJECT', criticality: 'UNSTABLE'],
+                                [threshold: 80.0, metric: 'BRANCH', baseline: 'PROJECT', criticality: 'FAILURE']
+                            ]
+                        )
+                    }
                 }
-                unstash 'source-code'
-                unstash 'unit-test-results'
-                bat '''
-                    set PYTHONPATH=%WORKSPACE%
-                    coverage run --rcfile=.coveragerc -m pytest
-                    coverage xml -o coverage.xml
-                '''
-                recordCoverage(
-                    tools: [[parser: 'COBERTURA', pattern: 'coverage.xml']],
-                    qualityGates: [
-                        [threshold: 95.0, metric: 'LINE', baseline: 'PROJECT', criticality: 'UNSTABLE'],
-                        [threshold: 85.0, metric: 'LINE', baseline: 'PROJECT', criticality: 'FAILURE'],
-                        [threshold: 90.0, metric: 'BRANCH', baseline: 'PROJECT', criticality: 'UNSTABLE'],
-                        [threshold: 80.0, metric: 'BRANCH', baseline: 'PROJECT', criticality: 'FAILURE']
-                    ]
-                )
-            }
-        }
-        
-        stage('Static Analysis') {
-            agent { label 'Agente2' }
-            steps {
-                script {
-                    echo "Ejecutando en agente: ${env.NODE_NAME}"
-                    bat 'whoami'
-                    bat 'hostname'
+
+                stage('Static Analysis') {
+                    agent { label 'Agente2' }
+                    steps {
+                        script {
+                            echo "Ejecutando Static Analysis en: ${env.NODE_NAME}"
+                        }
+                        unstash 'source-code'
+                        bat '''
+                            set PYTHONPATH=%WORKSPACE%
+                            flake8 app/ --format=pylint > flake8-report.txt || exit 0
+                        '''
+                        recordIssues(tools: [flake8(pattern: 'flake8-report.txt')])
+                        script {
+                            def warnings = readFile('flake8-report.txt').readLines().findAll { it.trim() }
+                            if (warnings.size() >= 10) {
+                                currentBuild.result = 'UNHEALTHY'
+                            } else if (warnings.size() >= 8) {
+                                currentBuild.result = 'UNSTABLE'
+                            }
+                        }
+                    }
                 }
-                unstash 'source-code'
-                bat '''
-                    set PYTHONPATH=%WORKSPACE%
-                    flake8 app/ --format=pylint > flake8-report.txt || exit 0
-                '''
-                recordIssues(tools: [flake8(pattern: 'flake8-report.txt')])
-                script {
-                    def warnings = readFile('flake8-report.txt').readLines().findAll { it.trim() }
-                    if (warnings.size() >= 10) {
-                        currentBuild.result = 'UNHEALTHY'
-                    } else if (warnings.size() >= 8) {
-                        currentBuild.result = 'UNSTABLE'
+
+                stage('Security') {
+                    agent { label 'Agente2' }
+                    steps {
+                        script {
+                            echo "Ejecutando Security en: ${env.NODE_NAME}"
+                        }
+                        unstash 'source-code'
+                        bat '''
+                            set PYTHONPATH=%WORKSPACE%
+                            bandit -r app/ -f json -o bandit-report.json || exit 0
+                        '''
+                        script {
+                            def banditResults = readJSON file: 'bandit-report.json'
+                            if (banditResults.results.size() >= 4) {
+                                currentBuild.result = 'FAILURE'
+                            } else if (banditResults.results.size() >= 2) {
+                                currentBuild.result = 'UNSTABLE'
+                            }
+                        }
                     }
                 }
             }
         }
-        
-        stage('Security') {
-            agent { label 'Agente2' }
-            steps {
-                script {
-                    echo "Ejecutando en agente: ${env.NODE_NAME}"
-                    bat 'whoami'
-                    bat 'hostname'
-                }
-                unstash 'source-code'
-                bat '''
-                    set PYTHONPATH=%WORKSPACE%
-                    bandit -r app/ -f json -o bandit-report.json || exit 0
-                '''
-                script {
-                    def banditResults = readJSON file: 'bandit-report.json'
-                    if (banditResults.results.size() >= 4) {
-                        currentBuild.result = 'FAILURE'
-                    } else if (banditResults.results.size() >= 2) {
-                        currentBuild.result = 'UNSTABLE'
-                    }
-                }
-            }
-        }
-        
+
         stage('Performance') {
             agent { label 'Agente2' }
             steps {
                 script {
-                    echo "Ejecutando en agente: ${env.NODE_NAME}"
-                    bat 'whoami'
-                    bat 'hostname'
+                    echo "Ejecutando Performance en: ${env.NODE_NAME}"
                 }
                 unstash 'source-code'
                 bat '''
@@ -154,7 +150,7 @@ pipeline {
                 perfReport sourceDataFiles: 'test/jmeter/resultados.jtl'
             }
         }
-        
+
         stage('Cleanup Workspace') {
             agent { label 'Agente0' }
             steps {
