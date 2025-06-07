@@ -15,32 +15,6 @@ pipeline {
             }
         }
 
-        // NUEVO BLOQUE: Simula cuello de botella en Agente2
-        stage('Simular Bloqueo en Agente2') {
-            parallel {
-                stage('Tarea Lenta 1') {
-                    agent { label 'Agente2' }
-                    steps {
-                        unstash 'source-code'
-                        bat '''
-                            echo Ejecutando tarea lenta 1 en Agente2
-                            timeout /T 15
-                        '''
-                    }
-                }
-                stage('Tarea Lenta 2') {
-                    agent { label 'Agente2' }
-                    steps {
-                        unstash 'source-code'
-                        bat '''
-                            echo Ejecutando tarea lenta 2 en Agente2
-                            timeout /T 15
-                        '''
-                    }
-                }
-            }
-        }
-
         stage('Unit Test') {
             agent { label 'Agente1' }
             steps {
@@ -110,74 +84,78 @@ pipeline {
             }
         }
 
-        stage('Static Analysis') {
-            agent { label 'Agente2' }
-            steps {
-                script {
-                    echo "Ejecutando en agente: ${env.NODE_NAME}"
-                    bat 'whoami'
-                    bat 'hostname'
-                }
-                unstash 'source-code'
-                bat '''
-                    set PYTHONPATH=%WORKSPACE%
-                    flake8 app/ --format=pylint > flake8-report.txt || exit 0
-                '''
-                recordIssues(tools: [flake8(pattern: 'flake8-report.txt')])
-                script {
-                    def warnings = readFile('flake8-report.txt').readLines().findAll { it.trim() }
-                    if (warnings.size() >= 10) {
-                        currentBuild.result = 'UNHEALTHY'
-                    } else if (warnings.size() >= 8) {
-                        currentBuild.result = 'UNSTABLE'
+        stage('Análisis Paralelo') {
+            parallel {
+                stage('Static Analysis') {
+                    agent { label 'Agente2' }
+                    steps {
+                        script {
+                            echo "Ejecutando en agente: ${env.NODE_NAME}"
+                            bat 'whoami'
+                            bat 'hostname'
+                        }
+                        unstash 'source-code'
+                        bat '''
+                            set PYTHONPATH=%WORKSPACE%
+                            flake8 app/ --format=pylint > flake8-report.txt || exit 0
+                        '''
+                        recordIssues(tools: [flake8(pattern: 'flake8-report.txt')])
+                        script {
+                            def warnings = readFile('flake8-report.txt').readLines().findAll { it.trim() }
+                            if (warnings.size() >= 10) {
+                                currentBuild.result = 'UNHEALTHY'
+                            } else if (warnings.size() >= 8) {
+                                currentBuild.result = 'UNSTABLE'
+                            }
+                        }
                     }
                 }
-            }
-        }
 
-        stage('Security') {
-            agent { label 'Agente2' }
-            steps {
-                script {
-                    echo "Ejecutando en agente: ${env.NODE_NAME}"
-                    bat 'whoami'
-                    bat 'hostname'
-                }
-                unstash 'source-code'
-                bat '''
-                    set PYTHONPATH=%WORKSPACE%
-                    bandit -r app/ -f json -o bandit-report.json || exit 0
-                '''
-                script {
-                    def banditResults = readJSON file: 'bandit-report.json'
-                    if (banditResults.results.size() >= 4) {
-                        currentBuild.result = 'FAILURE'
-                    } else if (banditResults.results.size() >= 2) {
-                        currentBuild.result = 'UNSTABLE'
+                stage('Security') {
+                    agent { label 'Agente2' }
+                    steps {
+                        script {
+                            echo "Ejecutando en agente: ${env.NODE_NAME}"
+                            bat 'whoami'
+                            bat 'hostname'
+                        }
+                        unstash 'source-code'
+                        bat '''
+                            set PYTHONPATH=%WORKSPACE%
+                            bandit -r app/ -f json -o bandit-report.json || exit 0
+                        '''
+                        script {
+                            def banditResults = readJSON file: 'bandit-report.json'
+                            if (banditResults.results.size() >= 4) {
+                                currentBuild.result = 'FAILURE'
+                            } else if (banditResults.results.size() >= 2) {
+                                currentBuild.result = 'UNSTABLE'
+                            }
+                        }
                     }
                 }
-            }
-        }
 
-        stage('Performance') {
-            agent { label 'Agente2' }
-            steps {
-                script {
-                    echo "Ejecutando en agente: ${env.NODE_NAME}"
-                    bat 'whoami'
-                    bat 'hostname'
+                stage('Performance') {
+                    agent { label 'Agente2' }
+                    steps {
+                        script {
+                            echo "Ejecutando en agente: ${env.NODE_NAME}"
+                            bat 'whoami'
+                            bat 'hostname'
+                        }
+                        unstash 'source-code'
+                        bat '''
+                            set FLASK_APP=app\\api.py
+                            set FLASK_ENV=development
+                            start /B flask run
+                            timeout /T 5
+                            C:\\Jenkins_Agente1\\Jenkins\\workspace\\tools\\apache-jmeter-5.6.3\\bin\\jmeter.bat -n -t test\\jmeter\\flask2.jmx -l test\\jmeter\\resultados.jtl
+                            taskkill /F /IM python.exe /T > nul 2>&1
+                            del flask.log
+                        '''
+                        perfReport sourceDataFiles: 'test/jmeter/resultados.jtl'
+                    }
                 }
-                unstash 'source-code'
-                bat '''
-                    set FLASK_APP=app\\api.py
-                    set FLASK_ENV=development
-                    start /B flask run
-                    timeout /T 5
-                    C:\\Jenkins_Agente1\\Jenkins\\workspace\\tools\\apache-jmeter-5.6.3\\bin\\jmeter.bat -n -t test\\jmeter\\flask2.jmx -l test\\jmeter\\resultados.jtl
-                    taskkill /F /IM python.exe /T > nul 2>&1
-                    del flask.log
-                '''
-                perfReport sourceDataFiles: 'test/jmeter/resultados.jtl'
             }
         }
 
